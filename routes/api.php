@@ -14,6 +14,6 @@ use SoluzioneSoftware\Nova\Tools\UsersTree\Http\Controllers\ToolController;
 |
 */
 
- Route::get('/', ToolController::class . '@getData');
- Route::get('/{id}', ToolController::class . '@getNodeData');
- Route::post('/search', ToolController::class . '@search');
+Route::get('/', ToolController::class . '@getData');
+Route::get('/{id}', ToolController::class . '@getNodeData');
+Route::post('/search', ToolController::class . '@search');

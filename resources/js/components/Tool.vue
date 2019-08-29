@@ -90,8 +90,8 @@
             },
             filter(nodeData) {
                 return nodeData.title.toLowerCase().includes(this.searchWord.toLowerCase())
-                        || nodeData.email.toLowerCase().includes(this.searchWord.toLowerCase())
-                        || nodeData.id.toString().includes(this.searchWord.toLowerCase());
+                    || nodeData.email.toLowerCase().includes(this.searchWord.toLowerCase())
+                    || nodeData.id.toString().includes(this.searchWord.toLowerCase());
             },
             reset () {
                 if (this.isLoading)
@@ -198,7 +198,7 @@
                             this.$set(node, 'loading', false);
                         })
                         .catch(error => {});
-                    }
+                }
             },
             click (node){
                 this.$set(node, 'selected', false);
@@ -210,67 +210,67 @@
 </script>
 
 <style>
-/* Scoped Styles */
-.tree-search-input {
-    /*width: 70%;*/
-    padding: 6px 8px;
-    outline: none;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-}
-.tree-search-buttons{
-    margin: 10px 0;
-}
-.tree-search-btn {
-    /*width: 25%;*/
-    padding: 6px 8px;
-    outline: none;
-    border-radius: 6px;
-    border: 1px solid #e2e1e1;
-    background: #336699;
-    color: white;
-}
-.tree-reset-btn {
-    /*width: 25%;*/
-    padding: 6px 8px;
-    outline: none;
-    border-radius: 6px;
-    background-color: #dadada;
-    border: 1px solid #e2e1e1;
-    color: #757575;
-}
-h1, h2 {
-    font-weight: normal;
-}
-ul {
-    list-style-type: none;
-    padding: 0;
-}
-li {
-    /*display: inline-block;*/
-    margin: 0 10px;
-}
-.spinner{
-    margin: 20px 0;
-}
-.halo-tree li::after,
-.halo-tree li::before {
-    border-width: 0;
-}
-.halo-tree li::after {
-    border-top: 1px dashed #999;
-}
-.halo-tree li::before {
-    border-left: 1px dashed #999;
-}
-.halo-tree li.leaf::after {
-    border-width: 0;
-    border-top: 1px dashed #999;
-}
-a {
-    color: #42b983;
-}
-.tree {
-    padding: 20px;
-}
+    /* Scoped Styles */
+    .tree-search-input {
+        /*width: 70%;*/
+        padding: 6px 8px;
+        outline: none;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+    }
+    .tree-search-buttons{
+        margin: 10px 0;
+    }
+    .tree-search-btn {
+        /*width: 25%;*/
+        padding: 6px 8px;
+        outline: none;
+        border-radius: 6px;
+        border: 1px solid #e2e1e1;
+        background: #336699;
+        color: white;
+    }
+    .tree-reset-btn {
+        /*width: 25%;*/
+        padding: 6px 8px;
+        outline: none;
+        border-radius: 6px;
+        background-color: #dadada;
+        border: 1px solid #e2e1e1;
+        color: #757575;
+    }
+    h1, h2 {
+        font-weight: normal;
+    }
+    ul {
+        list-style-type: none;
+        padding: 0;
+    }
+    li {
+        /*display: inline-block;*/
+        margin: 0 10px;
+    }
+    .spinner{
+        margin: 20px 0;
+    }
+    .halo-tree li::after,
+    .halo-tree li::before {
+        border-width: 0;
+    }
+    .halo-tree li::after {
+        border-top: 1px dashed #999;
+    }
+    .halo-tree li::before {
+        border-left: 1px dashed #999;
+    }
+    .halo-tree li.leaf::after {
+        border-width: 0;
+        border-top: 1px dashed #999;
+    }
+    a {
+        color: #42b983;
+    }
+    .tree {
+        padding: 20px;
+    }
 </style>

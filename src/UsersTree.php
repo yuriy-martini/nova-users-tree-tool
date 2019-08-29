@@ -17,17 +17,23 @@ class UsersTree extends Tool
      */
     public function __construct($component = null)
     {
-      parent::__construct($component);
+        parent::__construct($component);
 
-      config([
-        'nova.users-tree.model' => config()->get('nova.users-tree.model', config('auth.providers.users.model')),
-        'nova.users-tree.title-field' => config()->get('nova.users-tree.title-field', 'name'),
-        'nova.users-tree.parent-field' => config()->get('nova.users-tree.parent-field', 'parent'),
-        'nova.users-tree.children-field' => config()->get('nova.users-tree.children-field', 'children'),
-        'nova.users-tree.resource' => config()->get('nova.users-tree.resource', 'users'),
-        'nova.users-tree.search-columns' => config()->get('nova.users-tree.search-columns', ['name', 'email']),
-        'nova.users-tree.search-limit' => config()->get('nova.users-tree.search-limit', 1),
-      ]);
+        $parentField = config()->get('nova.users-tree-tool.parent-field', 'parent');
+        $titleField = config()->get('nova.users-tree-tool.title-field', 'name');
+
+        config([
+            'nova.users-tree-tool.model' => config()->get('nova.users-tree-tool.model', config('auth.providers.users.model')),
+            'nova.users-tree-tool.title-field' => $titleField,
+            'nova.users-tree-tool.parent-field' => $parentField,
+            'nova.users-tree-tool.children-field' => config()->get('nova.users-tree-tool.children-field', 'children'),
+            'nova.users-tree-tool.resource' => config()->get('nova.users-tree-tool.resource', 'users'),
+            'nova.users-tree-tool.search-columns' => config()->get('nova.users-tree-tool.search-columns', ['name']),
+            'nova.users-tree-tool.search-relations-columns' => config()->get('nova.users-tree-tool.search-relations-columns', []),
+            'nova.users-tree-tool.search-limit' => config()->get('nova.users-tree-tool.search-limit', 1),
+            'nova.users-tree-tool.query-columns' => config()->get('nova.users-tree-tool.query-columns', ['id', $parentField . '_id', $titleField]),
+            'nova.users-tree-tool.query-with' => config()->get('nova.users-tree-tool.query-with', []),
+        ]);
     }
 
     /**

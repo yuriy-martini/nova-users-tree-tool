@@ -2,7 +2,7 @@
 
 namespace SoluzioneSoftware\Nova\Tools\UsersTree\Http\Controllers;
 
-use App\Models\User;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -10,15 +10,14 @@ use Illuminate\Routing\Controller;
 
 class ToolController extends Controller
 {
-
-    public function getData()
-    {
+    public function getData(){
         $ret = [];
 
-        $users = static::getModelQueryBuilder()
-                       ->doesntHave(static::parentField())
-                       ->with(static::queryWith())
-                       ->get(static::queryColumns());
+        $users = static::
+        model()::
+        doesntHave(static::parentField())
+            ->with(static::queryWith())
+            ->get(static::queryColumns());
 
         foreach ($users as $user){
             $u = $this->loadUser($user);
@@ -28,11 +27,12 @@ class ToolController extends Controller
         return response()->json($ret);
     }
 
-    public function getNodeData($id)
-    {
-        $user = static::getModelQueryBuilder()
-                      ->with(static::queryWith()) // fixme: refactor this shit!
-                      ->findOrFail($id, static::queryColumns());
+    public function getNodeData($id){
+
+        $user = static::
+        model()::
+        with(static::queryWith())
+            ->findOrFail($id, static::queryColumns());
 
         $userData = $this->loadUser($user);
         $userData['children'] = $this->loadChildren($user);
@@ -43,12 +43,12 @@ class ToolController extends Controller
     public function search(Request $request){
         $word = $request->get('word', '');
         $exclude = $request->get('exclude', []);
-
-        $users = static::applySearch(static::getModelQueryBuilder(), $word)
-                        ->whereNotIn('id', $exclude)
-                        ->with(static::queryWith())
-                        ->take(static::searchLimit())
-                        ->get(static::queryColumns());
+        $q = static::model()::query();
+        $users = static::applySearch($q, $word)
+            ->whereNotIn('id', $exclude)
+            ->with(static::queryWith())
+            ->take(static::searchLimit())
+            ->get(static::queryColumns());
 
         $tree = $this->makeUsersTree($users);
 
@@ -63,7 +63,7 @@ class ToolController extends Controller
             'async' => true,
             'chkDisabled' => true,
             'expanded' => false,
-            'link' => config('nova.path') . '/resources/' . static::resource() . '/' . $user->id,
+            'link' => config('nova.path', '/nova') . '/resources/' . static::resource() . '/' . $user->id,
             'children' => $children,
         ];
 
@@ -74,8 +74,8 @@ class ToolController extends Controller
         $ret = [];
 
         $children = $parent->{static::childrenField()}()
-                           ->with(static::queryWith())
-                           ->get(static::queryColumns());
+            ->with(static::queryWith())
+            ->get(static::queryColumns());
 
         foreach ($children as $child){
             $u = $this->loadUser($child);
@@ -94,62 +94,51 @@ class ToolController extends Controller
      */
     protected static function applySearch(Builder $query, $search)
     {
-        return $query->where(function (Builder $query) use ($search) {
+        $model = $query->getModel();
+        $operator = $model->getConnection()->getDriverName() == 'pgsql' ? 'ilike' : 'like';
 
-            $model = $query->getModel();
-            $operator = $model->getConnection()->getDriverName() == 'pgsql' ? 'ilike' : 'like';
+        return $query
+            ->where(function (Builder $query) use ($operator, $model, $search) {
+                foreach (static::searchableColumns() as $column) {
+                    $query->orWhere($model->qualifyColumn($column), $operator, '%'.$search.'%');
+                }
 
-            foreach (static::searchableColumns() as $column) {
-                $query->orWhere($model->qualifyColumn($column), $operator, '%'.$search.'%');
+                static::applyRelationSearch($query, $search);
+            });
+    }
+
+    /**
+     * Apply the relationship search query to the given query.
+     *
+     * @param Builder $query
+     * @param string $search
+     * @return Builder
+     */
+    protected static function applyRelationSearch(Builder $query, string $search): Builder
+    {
+        foreach (static::searchableRelations() as $relation => $columns) {
+            $query->orWhereHas($relation, function (Builder $query) use ($columns, $search) {
+                $query->where(static::searchQueryApplier($columns, $search));
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Returns a Closure that applies a search query for a given columns.
+     *
+     * @param  array $columns
+     * @param  string $search
+     * @return Closure
+     */
+    protected static function searchQueryApplier(array $columns, string $search): Closure
+    {
+        return function (Builder $query) use ($columns, $search) {
+            foreach ($columns as $column) {
+                $query->orWhere($column, 'LIKE', '%'.$search.'%');
             }
-        });
-    }
-
-    protected static function searchableColumns()
-    {
-        return config('nova.users-tree.search-columns');
-    }
-
-    protected static function parentField()
-    {
-        return config('nova.users-tree.parent-field');
-    }
-
-    protected static function childrenField()
-    {
-        return config('nova.users-tree.children-field');
-    }
-
-    protected static function model()
-    {
-        return User::class;
-    }
-
-    protected static function searchLimit()
-    {
-        return config('nova.users-tree.search-limit');
-    }
-
-    protected static function titleField()
-    {
-        return config('nova.users-tree.title-field');
-    }
-
-    protected static function resource()
-    {
-        return config('nova.users-tree.resource');
-    }
-
-    protected static function queryWith()
-    {
-//        todo:
-        return [];
-    }
-
-    protected static function queryColumns()
-    {
-//        todo:
-        return ['*'];
+        };
     }
 
     protected function makeUsersTree(Collection $users)
@@ -194,8 +183,8 @@ class ToolController extends Controller
             return $this->loadUser($user, $children);
 
         $brothers = $father->{static::childrenField()}()
-                            ->with(static::queryWith())
-                            ->get(static::queryColumns());
+            ->with(static::queryWith())
+            ->get(static::queryColumns());
 
         foreach ($brothers as $brother){
             $brotherData = $this->loadUser($brother);
@@ -208,12 +197,54 @@ class ToolController extends Controller
         return $this->makeUserTree($father, $ret);
     }
 
-    /**
-     * @return Builder
-     */
-    protected static function getModelQueryBuilder()
+    protected static function searchableColumns()
     {
-        $model = static::model();
-        return $model::query();
+        return config('nova.users-tree-tool.search-columns');
     }
+
+    protected static function searchableRelations()
+    {
+        return config('nova.users-tree-tool.search-relations-columns');
+    }
+
+    protected static function parentField()
+    {
+        return config('nova.users-tree-tool.parent-field');
+    }
+
+    protected static function childrenField()
+    {
+        return config('nova.users-tree-tool.children-field');
+    }
+
+    protected static function model()
+    {
+        return config('nova.users-tree-tool.model');
+    }
+
+    protected static function searchLimit()
+    {
+        return config('nova.users-tree-tool.search-limit');
+    }
+
+    protected static function titleField()
+    {
+        return config('nova.users-tree-tool.title-field');
+    }
+
+    protected static function resource()
+    {
+        return config('nova.users-tree-tool.resource');
+    }
+
+    protected static function queryWith()
+    {
+        return config('nova.users-tree-tool.query-with');
+    }
+
+    protected static function queryColumns()
+    {
+        return config('nova.users-tree-tool.query-columns');
+    }
+
 }
