@@ -58,7 +58,7 @@ class ToolController extends Controller
     protected function loadUser($user, $children = []){
         $ret = [
             'id' => $user->id,
-            'title' => sprintf('[ID %s] %s', $user->id, $user->{static::titleField()}),
+            'title' => $this->formatTitle($user),
             'email' => $user->email,
             'async' => true,
             'chkDisabled' => true,
@@ -227,9 +227,9 @@ class ToolController extends Controller
         return config('nova.users-tree-tool.search-limit');
     }
 
-    protected static function titleField()
+    protected static function titleFormat()
     {
-        return config('nova.users-tree-tool.title-field');
+        return config('nova.users-tree-tool.title-format');
     }
 
     protected static function resource()
@@ -245,6 +245,21 @@ class ToolController extends Controller
     protected static function queryColumns()
     {
         return config('nova.users-tree-tool.query-columns');
+    }
+
+    protected function formatTitle($user)
+    {
+        $title = static::titleFormat();
+
+        $matches = [];
+        preg_match_all('/{{\w+}}/', $title, $matches);
+
+        foreach ($matches[0] as $match) {
+            $attribute = str_replace('{{', '', str_replace('}}', '', $match));
+            $title = str_replace($match, $user->{$attribute}, $title);
+        }
+
+        return $title;
     }
 
 }
