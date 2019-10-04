@@ -5,17 +5,18 @@ namespace SoluzioneSoftware\Nova\Tools\UsersTree\Http\Controllers;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Symfony\Component\Debug\Exception\UndefinedMethodException;
 
 class ToolController extends Controller
 {
     public function getData(){
         $ret = [];
 
-        $users = static::
-        model()::
-        doesntHave(static::parentField())
+        $users = static::applyTrashed(static::model()::query())
+            ->doesntHave(static::parentField())
             ->with(static::queryWith())
             ->get(static::queryColumns());
 
@@ -29,9 +30,8 @@ class ToolController extends Controller
 
     public function getNodeData($id){
 
-        $user = static::
-        model()::
-        with(static::queryWith())
+        $user = static::applyTrashed(static::model()::query())
+            ->with(static::queryWith())
             ->findOrFail($id, static::queryColumns());
 
         $userData = $this->loadUser($user);
@@ -43,7 +43,7 @@ class ToolController extends Controller
     public function search(Request $request){
         $word = $request->get('word', '');
         $exclude = $request->get('exclude', []);
-        $q = static::model()::query();
+        $q = static::applyTrashed(static::model()::query());
         $users = static::applySearch($q, $word)
             ->whereNotIn('id', $exclude)
             ->with(static::queryWith())
@@ -64,6 +64,7 @@ class ToolController extends Controller
             'chkDisabled' => true,
             'expanded' => false,
             'link' => config('nova.path', '/nova') . '/resources/' . static::resource() . '/' . $user->id,
+            'trashed' => true,
             'children' => $children,
         ];
 
@@ -73,7 +74,7 @@ class ToolController extends Controller
     protected function loadChildren($parent){
         $ret = [];
 
-        $children = $parent->{static::childrenField()}()
+        $children = static::applyTrashed($parent->{static::childrenField()}())
             ->with(static::queryWith())
             ->get(static::queryColumns());
 
@@ -105,6 +106,21 @@ class ToolController extends Controller
 
                 static::applyRelationSearch($query, $search);
             });
+    }
+
+    /**
+     * Apply the search query to the query.
+     *
+     * @param Builder $query
+     * @return Builder
+     */
+    protected static function applyTrashed($query)
+    {
+        try{
+            return $query->withTrashed(static::withTrashed());
+        }catch (UndefinedMethodException $exception) {
+            return $query;
+        }
     }
 
     /**
@@ -197,6 +213,31 @@ class ToolController extends Controller
         return $this->makeUserTree($father, $ret);
     }
 
+    /**
+     * @param Model $user
+     * @return string
+     */
+    protected function formatTitle($user)
+    {
+        try{
+            $trashed = $user->trashed();
+        } catch (UndefinedMethodException $exception) {
+            $trashed = false;
+        }
+
+        $titleFormat = $trashed && static::withTrashed() ? static::trashedTitleFormat() : static::titleFormat();
+        $title = $titleFormat;
+        $matches = [];
+        preg_match_all('/{{\w+}}/', $titleFormat, $matches);
+
+        foreach ($matches[0] as $match) {
+            $attribute = str_replace('{{', '', str_replace('}}', '', $match));
+            $title = str_replace($match, $user->{$attribute}, $title);
+        }
+
+        return $title;
+    }
+
     protected static function searchableColumns()
     {
         return config('nova.users-tree-tool.search-columns');
@@ -222,6 +263,11 @@ class ToolController extends Controller
         return config('nova.users-tree-tool.model');
     }
 
+    protected static function withTrashed()
+    {
+        return config('nova.users-tree-tool.with-trashed');
+    }
+
     protected static function searchLimit()
     {
         return config('nova.users-tree-tool.search-limit');
@@ -230,6 +276,11 @@ class ToolController extends Controller
     protected static function titleFormat()
     {
         return config('nova.users-tree-tool.title-format');
+    }
+
+    protected static function trashedTitleFormat()
+    {
+        return config('nova.users-tree-tool.trashed-title-format');
     }
 
     protected static function resource()
@@ -245,21 +296,6 @@ class ToolController extends Controller
     protected static function queryColumns()
     {
         return config('nova.users-tree-tool.query-columns');
-    }
-
-    protected function formatTitle($user)
-    {
-        $title = static::titleFormat();
-
-        $matches = [];
-        preg_match_all('/{{\w+}}/', $title, $matches);
-
-        foreach ($matches[0] as $match) {
-            $attribute = str_replace('{{', '', str_replace('}}', '', $match));
-            $title = str_replace($match, $user->{$attribute}, $title);
-        }
-
-        return $title;
     }
 
 }

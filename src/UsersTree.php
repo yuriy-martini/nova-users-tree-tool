@@ -23,7 +23,9 @@ class UsersTree extends Tool
 
         config([
             'nova.users-tree-tool.model' => config()->get('nova.users-tree-tool.model', config('auth.providers.users.model')),
+            'nova.users-tree-tool.with-trashed' => config()->get('nova.users-tree-tool.model', true),
             'nova.users-tree-tool.title-format' => config()->get('nova.users-tree-tool.title-format', '{{name}}'),
+            'nova.users-tree-tool.trashed-title-format' => config()->get('nova.users-tree-tool.trashed-title-format', '<span style="text-decoration: line-through">{{name}}</span>'),
             'nova.users-tree-tool.parent-field' => $parentField,
             'nova.users-tree-tool.children-field' => config()->get('nova.users-tree-tool.children-field', 'children'),
             'nova.users-tree-tool.resource' => config()->get('nova.users-tree-tool.resource', 'users'),
