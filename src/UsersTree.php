@@ -18,23 +18,6 @@ class UsersTree extends Tool
     public function __construct($component = null)
     {
         parent::__construct($component);
-
-        $parentField = config()->get('nova.users-tree-tool.parent-field', 'parent');
-
-        config([
-            'nova.users-tree-tool.model' => config()->get('nova.users-tree-tool.model', config('auth.providers.users.model')),
-            'nova.users-tree-tool.with-trashed' => config()->get('nova.users-tree-tool.model', true),
-            'nova.users-tree-tool.title-format' => config()->get('nova.users-tree-tool.title-format', '{{name}}'),
-            'nova.users-tree-tool.trashed-title-format' => config()->get('nova.users-tree-tool.trashed-title-format', '<span style="text-decoration: line-through">{{name}}</span>'),
-            'nova.users-tree-tool.parent-field' => $parentField,
-            'nova.users-tree-tool.children-field' => config()->get('nova.users-tree-tool.children-field', 'children'),
-            'nova.users-tree-tool.resource' => config()->get('nova.users-tree-tool.resource', 'users'),
-            'nova.users-tree-tool.search-columns' => config()->get('nova.users-tree-tool.search-columns', ['name']),
-            'nova.users-tree-tool.search-relations-columns' => config()->get('nova.users-tree-tool.search-relations-columns', []),
-            'nova.users-tree-tool.search-limit' => config()->get('nova.users-tree-tool.search-limit', 1),
-            'nova.users-tree-tool.query-columns' => config()->get('nova.users-tree-tool.query-columns', ['id', $parentField . '_id', 'name']),
-            'nova.users-tree-tool.query-with' => config()->get('nova.users-tree-tool.query-with', []),
-        ]);
     }
 
     /**
@@ -55,6 +38,6 @@ class UsersTree extends Tool
      */
     public function renderNavigation()
     {
-        return view('users-tree::navigation');
+        return view('nova-users-tree::navigation');
     }
 }

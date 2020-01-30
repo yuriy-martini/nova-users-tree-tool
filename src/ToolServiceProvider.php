@@ -2,6 +2,7 @@
 
 namespace SoluzioneSoftware\Nova\Tools\UsersTree;
 
+use Illuminate\Http\Request;
 use Laravel\Nova\Nova;
 use Laravel\Nova\Events\ServingNova;
 use Illuminate\Support\Facades\Route;
@@ -17,15 +18,44 @@ class ToolServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->loadViewsFrom(__DIR__.'/../resources/views', 'users-tree');
+        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'nova-users-tree');
+
+        $this->publishes([
+            __DIR__ . '/../config/users-tree-tool.php' => config_path('nova/users-tree-tool.php'),
+        ], 'config');
+
+        $this->publishes([
+            __DIR__ . '/../resources/views' => resource_path('views/vendor/nova-users-tree'),
+        ], 'views');
 
         $this->app->booted(function () {
             $this->routes();
         });
 
         Nova::serving(function (ServingNova $event) {
-            //
+            Nova::provideToScript([
+                'authorizedToSearch' => self::authorizedToSearch($event->request),
+                'authorizedToOpenUser' => self::authorizedToOpenUser($event->request),
+            ]);
         });
+    }
+
+    private static function authorizedToSearch(Request $request)
+    {
+        $callback = config('nova.users-tree-tool.can-search');
+        return
+            is_callable($callback)
+                ? call_user_func($callback, $request)
+                : (bool)$callback;
+    }
+
+    private static function authorizedToOpenUser(Request $request)
+    {
+        $callback = config('nova.users-tree-tool.can-open-user');
+        return
+            is_callable($callback)
+                ? call_user_func($callback, $request)
+                : (bool)$callback;
     }
 
     /**

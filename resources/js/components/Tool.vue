@@ -3,26 +3,28 @@
         <heading class="mb-6">{{ __('Users tree') }}</heading>
 
         <card class="flex-col p-4 justify-center" style="min-height: 300px">
+            <template v-if="authorizedToSearch">
+                <input class="tree-search-input w-1/4" type="text" v-model.lazy="searchWord" :placeholder="__('Search... (min 3 char)')"/>
 
-            <input class="tree-search-input w-1/4" type="text" v-model.lazy="searchWord" :placeholder="__('Search... (min 3 char)')"/>
+                <div class="w-1/4 tree-search-buttons">
+                    <button class=" tree-reset-btn " type="button" @click="reset">{{ __('Reset') }}</button>
 
-            <div class="w-1/4 tree-search-buttons">
-                <button class=" tree-reset-btn " type="button" @click="reset">{{ __('Reset') }}</button>
+                    <vue-button-spinner class="tree-search-btn"
+                                        :is-loading="isLoading"
+                                        :disabled="isLoading"
+                                        :status="status"
+                                        v-on:click.native="search">
+                        <span>{{ __('Submit') }}</span>
+                    </vue-button-spinner>
 
-                <vue-button-spinner class="tree-search-btn"
-                                    :is-loading="isLoading"
-                                    :disabled="isLoading"
-                                    :status="status"
-                                    v-on:click.native="search">
-                    <span>{{ __('Submit') }}</span>
-                </vue-button-spinner>
+                    <vue-button-spinner :disabled="isLoading"
+                                        :status="status"
+                                        v-on:click.native="search">
+                        <span>{{ __('Search more...') }}</span>
+                    </vue-button-spinner>
+                </div>
+            </template>
 
-                <vue-button-spinner :disabled="isLoading"
-                                    :status="status"
-                                    v-on:click.native="search">
-                    <span>{{ __('Search more...') }}</span>
-                </vue-button-spinner>
-            </div>
             <transition name="fade">
                 <div class="spinner" v-show="!dataLoaded">
                     <looping-rhombuses-spinner
@@ -192,7 +194,7 @@
                     this.$set(node, 'loading', true);
                     this.$set(node, 'children', []);
 
-                    Nova.request().get('/nova-vendor/users-tree/' + node.id)
+                    Nova.request().get(`/nova-vendor/users-tree/${node.id}/?level=${position.level}`)
                         .then(({ data }) => {
                             this.$refs.tree.addNodes(node, data.children);
                             this.$set(node, 'loading', false);
@@ -202,9 +204,16 @@
             },
             click (node){
                 this.$set(node, 'selected', false);
-                window.open( node.link );
+                if (Nova.config.authorizedToOpenUser){
+                    window.open( node.link );
+                }
             },
 
+        },
+        computed: {
+            authorizedToSearch() {
+                return Nova.config.authorizedToSearch;
+            },
         }
     }
 </script>

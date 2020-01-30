@@ -6,19 +6,27 @@ use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Symfony\Component\Debug\Exception\UndefinedMethodException;
 
 class ToolController extends Controller
 {
-    public function getData(){
+    public function getData(Request $request)
+    {
         $ret = [];
 
-        $users = static::applyTrashed(static::model()::query())
-            ->doesntHave(static::parentField())
-            ->with(static::queryWith())
-            ->get(static::queryColumns());
+        if (static::startsFromCurrent($request)){
+            /** @var Model $user */
+            $user = auth()->user();
+            $users = [$user];
+        }
+        else{
+            $users = static::applyTrashed(static::getModelQueryBuilder())
+                ->doesntHave(static::parentField())
+                ->with(static::queryWith())
+                ->get(static::queryColumns());
+        }
 
         foreach ($users as $user){
             $u = $this->loadUser($user);
@@ -28,19 +36,24 @@ class ToolController extends Controller
         return response()->json($ret);
     }
 
-    public function getNodeData($id){
-
-        $user = static::applyTrashed(static::model()::query())
+    public function getNodeData(Request $request, $id)
+    {
+        $user = static::applyTrashed(static::getModelQueryBuilder())
             ->with(static::queryWith())
             ->findOrFail($id, static::queryColumns());
 
         $userData = $this->loadUser($user);
-        $userData['children'] = $this->loadChildren($user);
+        $level = (int)$request->get('level', 1);
+        $maxLevel = static::maxLevel();
+        if (is_null($maxLevel) || $maxLevel >= $level){
+            $userData['children'] = $this->loadChildren($user);
+        }
 
         return response()->json($userData);
     }
 
-    public function search(Request $request){
+    public function search(Request $request)
+    {
         $word = $request->get('word', '');
         $exclude = $request->get('exclude', []);
         $q = static::applyTrashed(static::model()::query());
@@ -55,20 +68,19 @@ class ToolController extends Controller
         return response()->json($tree);
     }
 
-    protected function loadUser($user, $children = []){
-        $ret = [
-            'id' => $user->id,
+    protected function loadUser(Model $user, $children = [])
+    {
+        return [
+            'id' => $user->getKey(),
             'title' => $this->formatTitle($user),
-            'email' => $user->email,
+            'email' => $user->email, // FIXME: refactor this rubbish
             'async' => true,
             'chkDisabled' => true,
             'expanded' => false,
-            'link' => config('nova.path', '/nova') . '/resources/' . static::resource() . '/' . $user->id,
+            'link' => config('nova.path') . '/resources/' . static::resource() . '/' . $user->getKey(),
             'trashed' => true,
             'children' => $children,
         ];
-
-        return $ret;
     }
 
     protected function loadChildren($parent){
@@ -111,16 +123,20 @@ class ToolController extends Controller
     /**
      * Apply the search query to the query.
      *
-     * @param Builder $query
-     * @return Builder
+     * @param Builder|HasMany $query
+     * @return Builder|HasMany
      */
     protected static function applyTrashed($query)
     {
-        try{
-            return $query->withTrashed(static::withTrashed());
-        }catch (UndefinedMethodException $exception) {
-            return $query;
-        }
+        return static::withTrashed() ? $query->withTrashed() : $query;
+    }
+
+    /**
+     * @return Builder
+     */
+    protected static function getModelQueryBuilder()
+    {
+        return static::model()::query();
     }
 
     /**
@@ -167,7 +183,8 @@ class ToolController extends Controller
         return $tree;
     }
 
-    protected function mergeTreeNode(array $tree, $node){
+    protected function mergeTreeNode(array $tree, $node)
+    {
         $presentNode = null;
         $presentIndex = null;
         foreach ($tree as $index => $value) {
@@ -190,7 +207,8 @@ class ToolController extends Controller
         return $tree;
     }
 
-    protected function makeUserTree($user, $children = []){
+    protected function makeUserTree($user, $children = [])
+    {
         $ret = [];
 
         $father = $user->referrer;
@@ -213,64 +231,47 @@ class ToolController extends Controller
         return $this->makeUserTree($father, $ret);
     }
 
-    /**
-     * @param Model $user
-     * @return string
-     */
-    protected function formatTitle($user)
+    protected function formatTitle(Model $user)
     {
-        try{
-            $trashed = $user->trashed();
-        } catch (UndefinedMethodException $exception) {
-            $trashed = false;
-        }
-
-        $titleFormat = $trashed && static::withTrashed() ? static::trashedTitleFormat() : static::titleFormat();
-        $title = $titleFormat;
-        $matches = [];
-        preg_match_all('/{{\w+}}/', $titleFormat, $matches);
-
-        foreach ($matches[0] as $match) {
-            $attribute = str_replace('{{', '', str_replace('}}', '', $match));
-            $title = str_replace($match, $user->{$attribute}, $title);
-        }
-
-        return $title;
+        return
+            is_callable(static::titleFormat())
+                ? call_user_func(static::titleFormat(), $user, (int)request()->get('level', 1))
+                : $user->{static::titleField()};
     }
 
     protected static function searchableColumns()
     {
-        return config('nova.users-tree-tool.search-columns');
+        return config('nova.users-tree-tool.search-columns', ['name', 'email']);
     }
 
     protected static function searchableRelations()
     {
-        return config('nova.users-tree-tool.search-relations-columns');
+        return config('nova.users-tree-tool.search-relations-columns', []);
     }
 
     protected static function parentField()
     {
-        return config('nova.users-tree-tool.parent-field');
+        return config('nova.users-tree-tool.parent-field', 'parent');
     }
 
     protected static function childrenField()
     {
-        return config('nova.users-tree-tool.children-field');
+        return config('nova.users-tree-tool.children-field', 'children');
     }
 
     protected static function model()
     {
-        return config('nova.users-tree-tool.model');
+        return config('nova.users-tree-tool.model', config('auth.providers.users.model'));
     }
 
     protected static function withTrashed()
     {
-        return config('nova.users-tree-tool.with-trashed');
+        return config('nova.users-tree-tool.with-trashed', false);
     }
 
     protected static function searchLimit()
     {
-        return config('nova.users-tree-tool.search-limit');
+        return config('nova.users-tree-tool.search-limit', 1);
     }
 
     protected static function titleFormat()
@@ -278,24 +279,37 @@ class ToolController extends Controller
         return config('nova.users-tree-tool.title-format');
     }
 
-    protected static function trashedTitleFormat()
-    {
-        return config('nova.users-tree-tool.trashed-title-format');
-    }
-
     protected static function resource()
     {
-        return config('nova.users-tree-tool.resource');
+        return config('nova.users-tree-tool.resource', 'users');
     }
 
     protected static function queryWith()
     {
-        return config('nova.users-tree-tool.query-with');
+        return config('nova.users-tree-tool.query-with', []);
     }
 
     protected static function queryColumns()
     {
-        return config('nova.users-tree-tool.query-columns');
+        return config('nova.users-tree-tool.query-columns', ['id', 'parent_id', 'name', 'email']);
     }
 
+    private static function startsFromCurrent(Request $request)
+    {
+        $startFromCurrent = config('nova.users-tree-tool.start-from-current', false);
+        return
+            is_callable($startFromCurrent)
+            ? call_user_func($startFromCurrent, $request)
+            : (bool)$startFromCurrent;
+    }
+
+    protected static function maxLevel()
+    {
+        $maxLevel = config('nova.users-tree-tool.max-level');
+        if (is_callable($maxLevel)){
+            return call_user_func($maxLevel, request());
+        }
+
+        return !is_null($maxLevel) ? (int)$maxLevel : null;
+    }
 }
