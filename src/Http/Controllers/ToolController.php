@@ -274,6 +274,11 @@ class ToolController extends Controller
         return config('nova.users-tree-tool.search-limit', 1);
     }
 
+    protected static function titleField()
+    {
+        return config('nova.users-tree-tool.title-field', 'name');
+    }
+
     protected static function titleFormat()
     {
         return config('nova.users-tree-tool.title-format');
