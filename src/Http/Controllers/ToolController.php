@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Response;
 
 class ToolController extends Controller
 {
@@ -18,7 +21,7 @@ class ToolController extends Controller
 
         if (static::startsFromCurrent($request)){
             /** @var Model $user */
-            $user = auth()->user();
+            $user = Auth::user();
             $users = [$user];
         }
         else{
@@ -33,7 +36,7 @@ class ToolController extends Controller
             array_push($ret, $u);
         }
 
-        return response()->json($ret);
+        return Response::json($ret);
     }
 
     public function getNodeData(Request $request, $id)
@@ -49,7 +52,7 @@ class ToolController extends Controller
             $userData['children'] = $this->loadChildren($user);
         }
 
-        return response()->json($userData);
+        return Response::json($userData);
     }
 
     public function search(Request $request)
@@ -65,7 +68,7 @@ class ToolController extends Controller
 
         $tree = $this->makeUsersTree($users);
 
-        return response()->json($tree);
+        return Response::json($tree);
     }
 
     protected function loadUser(Model $user, $children = [])
@@ -77,7 +80,7 @@ class ToolController extends Controller
             'async' => true,
             'chkDisabled' => true,
             'expanded' => false,
-            'link' => config('nova.path') . '/resources/' . static::resource() . '/' . $user->getKey(),
+            'link' => Config::get('nova.path') . '/resources/' . static::resource() . '/' . $user->getKey(),
             'trashed' => true,
             'children' => $children,
         ];
@@ -235,73 +238,73 @@ class ToolController extends Controller
     {
         return
             is_callable(static::titleFormat())
-                ? call_user_func(static::titleFormat(), $user, (int)request()->get('level', 1))
+                ? call_user_func(static::titleFormat(), $user, (int)\Illuminate\Support\Facades\Request::route('level', 1))
                 : $user->{static::titleField()};
     }
 
     protected static function searchableColumns()
     {
-        return config('nova.users-tree-tool.search-columns', ['name', 'email']);
+        return Config::get('nova.users-tree-tool.search-columns', ['name', 'email']);
     }
 
     protected static function searchableRelations()
     {
-        return config('nova.users-tree-tool.search-relations-columns', []);
+        return Config::get('nova.users-tree-tool.search-relations-columns', []);
     }
 
     protected static function parentField()
     {
-        return config('nova.users-tree-tool.parent-field', 'parent');
+        return Config::get('nova.users-tree-tool.parent-field', 'parent');
     }
 
     protected static function childrenField()
     {
-        return config('nova.users-tree-tool.children-field', 'children');
+        return Config::get('nova.users-tree-tool.children-field', 'children');
     }
 
     protected static function model()
     {
-        return config('nova.users-tree-tool.model', config('auth.providers.users.model'));
+        return Config::get('nova.users-tree-tool.model', Config::get('auth.providers.users.model'));
     }
 
     protected static function withTrashed()
     {
-        return config('nova.users-tree-tool.with-trashed', false);
+        return Config::get('nova.users-tree-tool.with-trashed', false);
     }
 
     protected static function searchLimit()
     {
-        return config('nova.users-tree-tool.search-limit', 1);
+        return Config::get('nova.users-tree-tool.search-limit', 1);
     }
 
     protected static function titleField()
     {
-        return config('nova.users-tree-tool.title-field', 'name');
+        return Config::get('nova.users-tree-tool.title-field', 'name');
     }
 
     protected static function titleFormat()
     {
-        return config('nova.users-tree-tool.title-format');
+        return Config::get('nova.users-tree-tool.title-format');
     }
 
     protected static function resource()
     {
-        return config('nova.users-tree-tool.resource', 'users');
+        return Config::get('nova.users-tree-tool.resource', 'users');
     }
 
     protected static function queryWith()
     {
-        return config('nova.users-tree-tool.query-with', []);
+        return Config::get('nova.users-tree-tool.query-with', []);
     }
 
     protected static function queryColumns()
     {
-        return config('nova.users-tree-tool.query-columns', ['id', 'parent_id', 'name', 'email']);
+        return Config::get('nova.users-tree-tool.query-columns', ['id', 'parent_id', 'name', 'email']);
     }
 
     private static function startsFromCurrent(Request $request)
     {
-        $startFromCurrent = config('nova.users-tree-tool.start-from-current', false);
+        $startFromCurrent = Config::get('nova.users-tree-tool.start-from-current', false);
         return
             is_callable($startFromCurrent)
             ? call_user_func($startFromCurrent, $request)
@@ -310,9 +313,9 @@ class ToolController extends Controller
 
     protected static function maxLevel()
     {
-        $maxLevel = config('nova.users-tree-tool.max-level');
+        $maxLevel = Config::get('nova.users-tree-tool.max-level');
         if (is_callable($maxLevel)){
-            return call_user_func($maxLevel, request());
+            return call_user_func($maxLevel, \Illuminate\Support\Facades\Request::route());
         }
 
         return !is_null($maxLevel) ? (int)$maxLevel : null;
