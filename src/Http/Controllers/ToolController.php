@@ -47,7 +47,7 @@ class ToolController extends Controller
 
         $userData = $this->loadUser($user);
         $level = (int)$request->get('level', 1);
-        $maxLevel = static::maxLevel();
+        $maxLevel = static::maxLevel($request);
         if (is_null($maxLevel) || $maxLevel >= $level){
             $userData['children'] = $this->loadChildren($user);
         }
@@ -311,11 +311,11 @@ class ToolController extends Controller
             : (bool)$startFromCurrent;
     }
 
-    protected static function maxLevel()
+    protected static function maxLevel(Request $request)
     {
         $maxLevel = Config::get('nova.users-tree-tool.max-level');
         if (is_callable($maxLevel)){
-            return call_user_func($maxLevel, \Illuminate\Support\Facades\Request::route());
+            return call_user_func($maxLevel, $request);
         }
 
         return !is_null($maxLevel) ? (int)$maxLevel : null;
