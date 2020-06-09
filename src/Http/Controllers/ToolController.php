@@ -238,7 +238,7 @@ class ToolController extends Controller
     {
         return
             is_callable(static::titleFormat())
-                ? call_user_func(static::titleFormat(), $user, (int)\Illuminate\Support\Facades\Request::route('level', 1))
+                ? call_user_func(static::titleFormat(), $user, (int)\Illuminate\Support\Facades\Request::__get('level', 1))
                 : $user->{static::titleField()};
     }
 
