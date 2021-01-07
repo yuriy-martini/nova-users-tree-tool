@@ -193,12 +193,12 @@
                     this.$set(node, 'loading', true);
                     this.$set(node, 'children', []);
 
-                    Nova.request().get(`/nova-vendor/users-tree/${node.id}/?level=${position.level}`)
+                    Nova.request()
+                        .get(`/nova-vendor/users-tree/${node.id}?level=${position.level}`)
                         .then(({ data }) => {
                             this.$refs.tree.addNodes(node, data.children);
                             this.$set(node, 'loading', false);
-                        })
-                        .catch(error => {});
+                        });
                 }
             },
             click (node){
