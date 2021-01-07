@@ -82,13 +82,12 @@
         },
         methods: {
             initData() {
-                Nova.request().get('/nova-vendor/users-tree/')
+                Nova.request()
+                    .get('/nova-vendor/users-tree')
                     .then(({ data }) => {
                         this.dataLoaded = true;
-                        // console.log(data);
                         this.data = data;
                     })
-                    .catch(error => {})
             },
             filter(nodeData) {
                 return nodeData.title.toLowerCase().includes(this.searchWord.toLowerCase())
