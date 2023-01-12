@@ -19,21 +19,27 @@ class ToolController extends Controller
     {
         $ret = [];
 
-        if (static::startsFromCurrent($request)){
+        if (static::startsFromCurrent($request)) {
             /** @var Model $user */
             $user = Auth::user();
-            $users = [$user];
-        }
-        else{
+
+            $ret[] = $this->loadUser($user);
+        } else {
             $users = static::applyTrashed(static::getModelQueryBuilder())
                 ->doesntHave(static::parentField())
                 ->with(static::queryWith())
                 ->get(static::queryColumns());
-        }
 
-        foreach ($users as $user){
-            $u = $this->loadUser($user);
-            array_push($ret, $u);
+            $children = [];
+            foreach ($users as $user) {
+                $children[] = $this->loadUser($user);
+            }
+
+            if ($title = Config::get('nova.users-tree-tool.root.title')) {
+                $ret[] = $this->loadRoot($title, $children);
+            } else {
+                $ret = $children;
+            }
         }
 
         return Response::json($ret);
@@ -48,7 +54,7 @@ class ToolController extends Controller
         $userData = $this->loadUser($user);
         $level = (int)$request->get('level', 1);
         $maxLevel = static::maxLevel($request);
-        if (is_null($maxLevel) || $maxLevel >= $level){
+        if (is_null($maxLevel) || $maxLevel >= $level) {
             $userData['children'] = $this->loadChildren($user);
         }
 
@@ -71,6 +77,21 @@ class ToolController extends Controller
         return Response::json($tree);
     }
 
+    protected function loadRoot(string $title, array $children = []): array
+    {
+        return [
+            'id' => null,
+            'title' => $title,
+            'email' => null,
+            'async' => true,
+            'chkDisabled' => true,
+            'expanded' => true,
+            'link' => null,
+            'trashed' => true,
+            'children' => $children,
+        ];
+    }
+
     protected function loadUser(Model $user, $children = [])
     {
         return [
@@ -86,14 +107,15 @@ class ToolController extends Controller
         ];
     }
 
-    protected function loadChildren($parent){
+    protected function loadChildren($parent)
+    {
         $ret = [];
 
         $children = static::applyTrashed($parent->{static::childrenField()}())
             ->with(static::queryWith())
             ->get(static::queryColumns());
 
-        foreach ($children as $child){
+        foreach ($children as $child) {
             $u = $this->loadUser($child);
             array_push($ret, $u);
         }
@@ -116,7 +138,7 @@ class ToolController extends Controller
         return $query
             ->where(function (Builder $query) use ($operator, $model, $search) {
                 foreach (static::searchableColumns() as $column) {
-                    $query->orWhere($model->qualifyColumn($column), $operator, '%'.$search.'%');
+                    $query->orWhere($model->qualifyColumn($column), $operator, '%' . $search . '%');
                 }
 
                 static::applyRelationSearch($query, $search);
@@ -163,15 +185,15 @@ class ToolController extends Controller
     /**
      * Returns a Closure that applies a search query for a given columns.
      *
-     * @param  array $columns
-     * @param  string $search
+     * @param array $columns
+     * @param string $search
      * @return Closure
      */
     protected static function searchQueryApplier(array $columns, string $search): Closure
     {
         return function (Builder $query) use ($columns, $search) {
             foreach ($columns as $column) {
-                $query->orWhere($column, 'LIKE', '%'.$search.'%');
+                $query->orWhere($column, 'LIKE', '%' . $search . '%');
             }
         };
     }
@@ -191,7 +213,7 @@ class ToolController extends Controller
         $presentNode = null;
         $presentIndex = null;
         foreach ($tree as $index => $value) {
-            if ($value['id'] === $node['id']){
+            if ($value['id'] === $node['id']) {
                 $presentNode = $value;
                 $presentIndex = $index;
                 break;
@@ -201,7 +223,7 @@ class ToolController extends Controller
         if (is_null($presentNode))
             return array_merge($tree, [$node]);
 
-        foreach ($node['children'] as $child){
+        foreach ($node['children'] as $child) {
             $presentNode['children'] = $this->mergeTreeNode($presentNode['children'], $child);
         }
 
@@ -223,7 +245,7 @@ class ToolController extends Controller
             ->with(static::queryWith())
             ->get(static::queryColumns());
 
-        foreach ($brothers as $brother){
+        foreach ($brothers as $brother) {
             $brotherData = $this->loadUser($brother);
             if ($brother->id === $user->id)
                 $brotherData['children'] = $children;
@@ -307,14 +329,14 @@ class ToolController extends Controller
         $startFromCurrent = Config::get('nova.users-tree-tool.start-from-current', false);
         return
             is_callable($startFromCurrent)
-            ? call_user_func($startFromCurrent, $request)
-            : (bool)$startFromCurrent;
+                ? call_user_func($startFromCurrent, $request)
+                : (bool)$startFromCurrent;
     }
 
     protected static function maxLevel(Request $request)
     {
         $maxLevel = Config::get('nova.users-tree-tool.max-level');
-        if (is_callable($maxLevel)){
+        if (is_callable($maxLevel)) {
             return call_user_func($maxLevel, $request);
         }
 

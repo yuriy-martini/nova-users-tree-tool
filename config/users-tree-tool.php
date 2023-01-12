@@ -70,4 +70,13 @@ return [
      * bool|closure
      */
     'can-open-user' => true,
+
+    'root' => [
+
+        /*
+         * string|null
+         */
+        'title' => null,
+
+    ],
 ];
